@@ -86,7 +86,15 @@ module ActiveRecord::Import::MysqlAdapter
   end
 
   def supports_returning?
-    version = execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
+    adapter_name = ActiveRecord::Base.connection.adapter_name
+    version = case adapter_name
+              when "Mysql2"
+                execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
+              when "Trilogy"
+                execute("SELECT VERSION()").first["VERSION()"]
+              else
+                raise "Unsupported adapter: #{adapter_name}"
+              end
     version >= '8.0.26'
   end
 
