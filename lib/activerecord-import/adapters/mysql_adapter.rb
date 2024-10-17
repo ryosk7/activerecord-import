@@ -39,10 +39,13 @@ module ActiveRecord::Import::MysqlAdapter
       sql2insert = base_sql + values.join( ',' ) + post_sql
 
       selections = returning_selections(options)
-      unless selections.blank?
+      if selections.blank?
+        insert( sql2insert, *args )
+        returned_values = {}
+      else
         sql2insert += " RETURNING #{selections.join(', ')}"
+        returned_values = insert( sql2insert, *args )
       end
-      returned_values = insert( sql2insert, *args )
     else
       value_sets = ::ActiveRecord::Import::ValueSetsBytesParser.parse(values,
         reserved_bytes: sql_size,
@@ -52,13 +55,15 @@ module ActiveRecord::Import::MysqlAdapter
         value_sets.each do |value_set|
           number_of_inserts += 1
           sql2insert = base_sql + value_set.join( ',' ) + post_sql
-          returned_values = insert( sql2insert, *args )
+          insert( sql2insert, *args )
+          returned_values = {}
         end
       end
     end
 
     if options[:returning].blank?
       ids = Array(returned_values[:values])
+      results = []
     else
       ids, results = split_ids_and_results(returned_values, options)
     end
