@@ -94,7 +94,7 @@ module ActiveRecord::Import::MysqlAdapter
       when "Trilogy"
         execute("SELECT VERSION()").first[0]
       else
-        raise "Unsupported adapter: #{adapter_name}"
+        return false
       end
 
     return false if version.nil?
