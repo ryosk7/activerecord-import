@@ -87,12 +87,11 @@ module ActiveRecord::Import::MysqlAdapter
 
   def supports_returning?
     adapter_name = ActiveRecord::Base.connection.adapter_name
-    puts execute("SELECT VERSION()").first
     version = case adapter_name
               when "Mysql2"
                 execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
               when "Trilogy"
-                execute("SELECT VERSION()").first["VERSION()"]
+                execute("SELECT VERSION()").first[0]
               else
                 raise "Unsupported adapter: #{adapter_name}"
               end
