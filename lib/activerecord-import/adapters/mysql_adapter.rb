@@ -37,7 +37,12 @@ module ActiveRecord::Import::MysqlAdapter
     if max == NO_MAX_PACKET || total_bytes <= max || options[:force_single_insert]
       number_of_inserts += 1
       sql2insert = base_sql + values.join( ',' ) + post_sql
-      insert( sql2insert, *args )
+
+      selections = returning_selections(options)
+      unless selections.blank?
+        sql2insert += " RETURNING #{selections.join(', ')}"
+      end
+      returned_values = insert( sql2insert, *args )
     else
       value_sets = ::ActiveRecord::Import::ValueSetsBytesParser.parse(values,
         reserved_bytes: sql_size,
@@ -47,12 +52,58 @@ module ActiveRecord::Import::MysqlAdapter
         value_sets.each do |value_set|
           number_of_inserts += 1
           sql2insert = base_sql + value_set.join( ',' ) + post_sql
-          insert( sql2insert, *args )
+          returned_values = insert( sql2insert, *args )
         end
       end
     end
 
-    ActiveRecord::Import::Result.new([], number_of_inserts, [], [])
+    if options[:returning].blank?
+      ids = Array(returned_values[:values])
+    else
+      ids, results = split_ids_and_results(returned_values, options)
+    end
+
+    ActiveRecord::Import::Result.new([], number_of_inserts, ids, results)
+  end
+
+  def returning_selections(options)
+    return [] unless supports_returning?
+
+    selections = []
+    column_names = Array(options[:model].column_names)
+
+    selections += Array(options[:primary_key]) if options[:primary_key].present?
+    selections += Array(options[:returning]) if options[:returning].present?
+
+    selections.map do |selection|
+      column_names.include?(selection.to_s) ? "`#{selection}`" : selection
+    end
+  end
+
+  def supports_returning?
+    version = execute("SELECT VERSION()").first[0].split('.').map(&:to_i)
+    version >= [8, 0, 26]
+  end
+
+  def split_ids_and_results(returned_values, options)
+    ids = []
+    returning_values = []
+    columns = Array(returned_values[:columns])
+    values = Array(returned_values[:values])
+    id_indexes = Array(options[:primary_key].map { |key| columns.index(key)} )
+    returning_columns = columns.reject.with_index { |_, index| id_indexes.include?(index) }
+    returning_indexes = returning_columns.map { |column| columns.index(column) }
+
+    values.each do |value|
+      value_array = Array(value)
+      ids << id_indexes.map { |index| value_array[index] }
+      returning_values << returning_indexes.map { |index| value_array[index] }
+    end
+
+    ids.map!(&:first) if id_indexes.size == 1
+    returning_values.map!(&:first) if returning_columns.size == 1
+
+    [ids, returning_values]
   end
 
   # Returns the maximum number of bytes that the server will allow
