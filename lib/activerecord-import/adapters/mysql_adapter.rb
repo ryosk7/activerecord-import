@@ -81,8 +81,8 @@ module ActiveRecord::Import::MysqlAdapter
   end
 
   def supports_returning?
-    version = execute("SELECT VERSION()").first[0].split('.').map(&:to_i)
-    version >= [8, 0, 26]
+    version = execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
+    version >= '8.0.26'
   end
 
   def split_ids_and_results(returned_values, options)
