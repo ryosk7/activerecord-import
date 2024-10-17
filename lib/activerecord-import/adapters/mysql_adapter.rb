@@ -96,6 +96,9 @@ module ActiveRecord::Import::MysqlAdapter
       else
         raise "Unsupported adapter: #{adapter_name}"
       end
+
+    return false if version.nil?
+
     version >= '8.0.26'
   end
 
