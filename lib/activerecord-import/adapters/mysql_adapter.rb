@@ -87,14 +87,15 @@ module ActiveRecord::Import::MysqlAdapter
 
   def supports_returning?
     adapter_name = ActiveRecord::Base.connection.adapter_name
-    version = case adapter_name
-              when "Mysql2"
-                execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
-              when "Trilogy"
-                execute("SELECT VERSION()").first[0]
-              else
-                raise "Unsupported adapter: #{adapter_name}"
-              end
+    version =
+      case adapter_name
+      when "Mysql2"
+        execute("SELECT VERSION()").first[0].split('.').map(&:to_i).join(".")
+      when "Trilogy"
+        execute("SELECT VERSION()").first[0]
+      else
+        raise "Unsupported adapter: #{adapter_name}"
+      end
     version >= '8.0.26'
   end
 
@@ -103,7 +104,7 @@ module ActiveRecord::Import::MysqlAdapter
     returning_values = []
     columns = Array(returned_values[:columns])
     values = Array(returned_values[:values])
-    id_indexes = Array(options[:primary_key].map { |key| columns.index(key)} )
+    id_indexes = Array(options[:primary_key].map { |key| columns.index(key) } )
     returning_columns = columns.reject.with_index { |_, index| id_indexes.include?(index) }
     returning_indexes = returning_columns.map { |column| columns.index(column) }
 
